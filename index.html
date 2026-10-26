@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#165DFF">
+  <meta name="description" content="A personal library for your favorite browser games.">
+  <title>WebArcade</title>
+  <link rel="icon" type="image/svg+xml" href="./assets/icons/favicon.svg">
+  <link rel="stylesheet" href="./css/style.css">
+  <script src="./js/app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="./" aria-label="WebArcade home">
+        <span class="brand-mark">W</span>
+        <span>WebArcade</span>
+      </a>
+      <button id="sidebar-toggle" class="sidebar-toggle" aria-label="Collapse sidebar" title="Collapse sidebar">⇤</button>
+      <div class="side-label">LIBRARY</div>
+      <nav class="nav-list" aria-label="Library views">
+        <button class="nav-item active" data-view="all"><span>▦</span><span class="nav-text">All games</span><span class="nav-count" id="all-count">0</span></button>
+        <button class="nav-item" data-view="favorites"><span>☆</span><span class="nav-text">Favorites</span></button>
+        <button class="nav-item" data-view="recent"><span>◷</span><span class="nav-text">Recently played</span></button>
+      </nav>
+      <div class="side-label collection-label">COLLECTIONS</div>
+      <div id="collection-list" class="nav-list"></div>
+      <button id="add-collection" class="text-button">＋ New collection</button>
+      <div class="sidebar-bottom"><span class="status-dot"></span><span class="nav-text">LOCAL LIBRARY</span></div>
+      <button id="sidebar-settings" class="nav-item settings-nav"><span>⚙</span><span class="nav-text">Settings & backup</span></button>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="breadcrumbs"><span>WEBARCADE</span><span class="crumb-slash">/</span><strong id="view-title">All games</strong></div>
+        <div class="top-actions">
+          <label class="search-box">
+            <span aria-hidden="true">⌕</span>
+            <input id="search" type="search" placeholder="Search your library…" autocomplete="off">
+            <kbd> / </kbd>
+          </label>
+          <button class="icon-button theme-toggle" id="theme-toggle" title="Toggle color theme" aria-label="Toggle color theme">◐</button>
+          <button class="icon-button" id="settings-button" title="Settings and backup" aria-label="Settings and backup">↗</button>
+        </div>
+      </header>
+
+      <section id="library-screen">
+        <section class="library-header">
+          <div><p class="eyebrow">YOUR WEB ARCADE <span class="eyebrow-slash"></span></p><h1 id="page-heading">Your Library<span class="period">.</span></h1><p class="subtitle" id="library-summary">Your favorite browser games, all in one place.</p></div>
+          <button class="primary-button" id="add-game-button"><span class="plus">＋</span> Add game</button>
+        </section>
+
+      <section class="toolbar" aria-label="Library controls">
+        <div class="result-label"><span class="result-square"></span><span id="results-label">ALL TITLES</span></div>
+        <div class="toolbar-tools">
+          <label class="filter-control"><span>Collection</span><select id="collection-filter"><option value="">All collections</option></select></label>
+          <label class="sort-control"><span>Sort</span><select id="sort-select"><option value="added">Recently added</option><option value="title">Name A–Z</option><option value="recent">Recently played</option></select></label>
+          <div class="view-switch" role="group" aria-label="View mode"><button id="grid-view-button" class="view-button active" aria-label="Grid view" title="Grid view">▦</button><button id="list-view-button" class="view-button" aria-label="List view" title="List view">☷</button></div>
+        </div>
+      </section>
+
+      <section id="game-grid" class="game-grid" aria-live="polite"></section>
+      <section id="game-list" class="game-list" aria-live="polite" hidden></section>
+      <section id="empty-state" class="empty-state" hidden>
+        <div class="empty-icon">▦</div>
+        <h2 id="empty-title">Your library is waiting.</h2>
+        <p id="empty-copy">Add a browser game to start building your collection.</p>
+        <button class="primary-button" id="empty-add-button">＋ Add your first game</button>
+      </section>
+      </section>
+      <div id="details-backdrop" class="details-backdrop" hidden></div>
+      <aside id="details-screen" class="details-panel" aria-label="Game details" aria-hidden="true" hidden>
+        <div class="details-panel-header">
+          <div><p class="eyebrow">GAME DETAILS</p><span class="details-panel-kicker">YOUR ARCADE / PROFILE</span></div>
+          <button id="back-to-library" class="icon-button details-close" aria-label="Close game details" title="Close details">×</button>
+        </div>
+        <div id="details-content"></div>
+      </aside>
+      <footer class="footer">
+        <span>WEBARCADE <span class="footer-dot">·</span> BROWSER GAME LIBRARY</span>
+        <span class="footer-meta">
+          <span id="storage-status">Changes save in this browser</span>
+          <span class="footer-dot">·</span>
+          <a class="credits-link" href="https://github.com/ravionry" target="_blank" rel="noopener noreferrer" aria-label="Credits: visit Ravionry on GitHub">Made by ravionry on GitHub ↗</a>
+        </span>
+      </footer>
+    </main>
+  </div>
+
+  <dialog id="game-dialog" class="modal">
+    <form id="game-form" method="dialog">
+      <div class="modal-header">
+        <div><p class="eyebrow">LIBRARY EDITOR</p><h2 id="dialog-title">Add a game</h2></div>
+        <button type="button" class="icon-button close-button" data-close="game-dialog" aria-label="Close">×</button>
+      </div>
+      <input type="hidden" id="game-id">
+      <label class="field-label">Game title <input id="game-title" required maxlength="100" placeholder="e.g. Hordes.io"></label>
+      <label class="field-label">Game URL <input id="game-url" type="url" required placeholder="https://example.com"></label>
+      <label class="field-label">Description <textarea id="game-description" rows="3" maxlength="500" placeholder="What makes this game fun?"></textarea></label>
+      <div class="field-row">
+        <label class="field-label">Genre / tags <input id="game-tags" placeholder="Action, Multiplayer"></label>
+        <label class="field-label">Collection
+          <select id="game-collection"><option value="">None</option></select>
+        </label>
+      </div>
+      <label class="field-label">Cover image <input id="game-cover" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></label>
+      <label class="field-label">Screenshots <input id="game-screenshots" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple></label>
+      <p class="field-help">Screenshots are optional. Keep images small; browser storage has a limited capacity.</p>
+      <p class="field-help">For this starter, cover images are stored in this browser's saved library. Export a backup to keep them when switching browsers or devices.</p>
+      <label class="check-field"><input id="game-favorite" type="checkbox"> Add to favorites</label>
+      <div class="modal-actions">
+        <button type="button" class="danger-button" id="delete-game-button" hidden>Delete game</button>
+        <span class="action-spacer"></span>
+        <button type="button" class="secondary-button" data-close="game-dialog">Cancel</button>
+        <button type="submit" class="primary-button">Save game</button>
+      </div>
+      <p id="form-error" class="form-error" role="alert"></p>
+    </form>
+  </dialog>
+
+  <dialog id="tools-dialog" class="modal compact-modal">
+    <div class="modal-header">
+      <div><p class="eyebrow">YOUR DATA</p><h2>Library tools</h2></div>
+      <button type="button" class="icon-button close-button" data-close="tools-dialog" aria-label="Close">×</button>
+    </div>
+    <p class="modal-intro">Your library is saved in this browser. Export a backup before clearing browser data or moving to another device.</p>
+    <button class="tool-row" id="export-button"><span class="tool-icon">↓</span><span><strong>Export library backup</strong><small>Download games, collections, and cover images as JSON.</small></span></button>
+    <label class="tool-row file-tool"><span class="tool-icon">↑</span><span><strong>Import library backup</strong><small>Restore a JSON backup from another browser or device.</small></span><input id="import-file" type="file" accept="application/json,.json"></label>
+    <button class="tool-row" id="reset-demo-button"><span class="tool-icon">↺</span><span><strong>Restore sample games</strong><small>Add the starter examples when your library is empty.</small></span></button>
+    <div class="settings-options"><label class="field-label">Appearance<select id="theme-select"><option value="light">Light / editorial</option><option value="dark">Dark</option></select></label><label class="field-label">Card density<select id="density-select"><option value="compact">Compact</option><option value="comfortable">Comfortable</option></select></label></div>
+    <section class="accent-settings" aria-labelledby="accent-settings-title">
+      <div class="accent-settings-heading"><strong id="accent-settings-title">Contrast color</strong><span class="field-help">Personalize buttons, highlights, and active navigation.</span></div>
+      <div class="accent-controls">
+        <label class="field-label accent-picker-label">Palette color
+          <div class="accent-palette" id="accent-palette">
+            <button type="button" class="accent-swatch" data-accent="#165DFF" style="--swatch:#165DFF" aria-label="Cobalt blue" title="Cobalt blue"></button>
+            <button type="button" class="accent-swatch" data-accent="#7C3AED" style="--swatch:#7C3AED" aria-label="Violet" title="Violet"></button>
+            <button type="button" class="accent-swatch" data-accent="#DB2777" style="--swatch:#DB2777" aria-label="Pink" title="Pink"></button>
+            <button type="button" class="accent-swatch" data-accent="#DC2626" style="--swatch:#DC2626" aria-label="Red" title="Red"></button>
+            <button type="button" class="accent-swatch" data-accent="#EA580C" style="--swatch:#EA580C" aria-label="Orange" title="Orange"></button>
+            <button type="button" class="accent-swatch" data-accent="#0D9488" style="--swatch:#0D9488" aria-label="Teal" title="Teal"></button>
+            <button type="button" class="accent-swatch" data-accent="#16A34A" style="--swatch:#16A34A" aria-label="Green" title="Green"></button>
+            <button type="button" class="accent-swatch" data-accent="#CA8A04" style="--swatch:#CA8A04" aria-label="Gold" title="Gold"></button>
+          </div>
+        </label>
+        <label class="field-label hex-color-label">Custom HEX
+          <div class="hex-color-inputs"><input id="accent-hex" type="text" value="#165DFF" maxlength="7" inputmode="text" pattern="^#[0-9A-Fa-f]{6}$" aria-label="Contrast color hex value" placeholder="#165DFF"><input id="accent-color-picker" type="color" value="#165dff" aria-label="Choose custom color"></div>
+        </label>
+      </div>
+      <button type="button" class="secondary-button accent-reset" id="accent-reset">Reset to default</button>
+      <p class="field-help" id="accent-error" role="status" aria-live="polite"></p>
+    </section>
+    <p class="field-help">Import lets you merge a backup into your current library or replace the current games and collections. Export a backup first if you want to keep your existing games. Data is stored locally in this browser; GitHub Pages hosts the app, not a shared library.</p>
+  </dialog>
+
+  <dialog id="collection-dialog" class="modal compact-modal">
+    <form id="collection-form" method="dialog">
+      <div class="modal-header"><div><p class="eyebrow">ORGANIZE</p><h2 id="collection-dialog-title">New collection</h2></div><button type="button" class="icon-button close-button" data-close="collection-dialog" aria-label="Close">×</button></div>
+      <input type="hidden" id="collection-id">
+      <label class="field-label">Collection name <input id="collection-name" required maxlength="40" placeholder="e.g. Quick breaks"></label>
+      <p class="field-help">Collections organize games independently of their tags. You can use the same words for both.</p>
+      <div class="modal-actions"><button type="button" class="danger-button" id="delete-collection-button" hidden>Delete collection</button><span class="action-spacer"></span><button type="button" class="secondary-button" data-close="collection-dialog">Cancel</button><button type="submit" class="primary-button" id="save-collection-button">Create</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="lightbox" class="lightbox"><button type="button" data-close-lightbox>Close ×</button><img id="lightbox-image" alt="Expanded game screenshot"></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
