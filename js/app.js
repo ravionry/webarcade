@@ -432,10 +432,6 @@
     if (!/\.html?$/i.test(file.name) && file.type !== "text/html") {
       throw new Error("Please choose an .html file.");
     }
-    const MAX_HTML_SIZE = 5 * 1024 * 1024;
-    if (file.size > MAX_HTML_SIZE) {
-      throw new Error("Please choose an HTML file smaller than 5 MB.");
-    }
     const content = await file.text();
     if (!content.trim()) throw new Error("That HTML file is empty.");
     return { content, filename: file.name };
