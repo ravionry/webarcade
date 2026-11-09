@@ -124,3 +124,9 @@
 
 /* User-selectable contrast/accent color */
 .accent-settings{border-top:1px solid var(--border);margin-top:8px;padding-top:16px;display:grid;gap:13px}.accent-settings-heading{display:grid;gap:5px}.accent-settings-heading strong{font-size:12px}.accent-controls{display:grid;grid-template-columns:1fr 1fr;gap:14px}.accent-palette{display:flex;flex-wrap:wrap;gap:8px;padding-top:3px}.accent-swatch{width:27px;height:27px;border-radius:50%;border:2px solid var(--panel);outline:1px solid var(--border);background:var(--swatch);padding:0}.accent-swatch[aria-pressed="true"]{outline:2px solid var(--text);outline-offset:2px}.hex-color-inputs{display:flex;gap:7px}.hex-color-inputs input[type=text]{min-width:0;width:100%;text-transform:uppercase}.hex-color-inputs input[type=color]{width:42px;min-width:42px;height:38px;padding:3px;border:1px solid var(--border);border-radius:3px;background:var(--panel);cursor:pointer}.accent-reset{justify-self:start}.accent-settings .field-help{font-weight:400}@media(max-width:650px){.accent-controls{grid-template-columns:1fr}}
+
+/* HTML game source editor */
+.html-upload-field{display:grid;gap:7px;padding:12px;border:1px dashed var(--border);background:var(--panel-soft)}
+.html-upload-field[hidden]{display:none!important}
+.html-upload-field .field-label{margin:0}
+#game-html-status{overflow-wrap:anywhere}
