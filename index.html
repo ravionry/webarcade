@@ -96,7 +96,17 @@
       </div>
       <input type="hidden" id="game-id">
       <label class="field-label">Game title <input id="game-title" required maxlength="100" placeholder="e.g. Hordes.io"></label>
-      <label class="field-label">Game URL <input id="game-url" type="url" required placeholder="https://example.com"></label>
+      <label class="field-label">Game source
+        <select id="game-source-type">
+          <option value="url">Website URL</option>
+          <option value="html">Uploaded HTML file</option>
+        </select>
+      </label>
+      <label class="field-label" id="game-url-field">Game URL <input id="game-url" type="url" placeholder="https://example.com"></label>
+      <div id="game-html-field" class="html-upload-field" hidden>
+        <label class="field-label">HTML game file <input id="game-html-file" type="file" accept=".html,text/html"></label>
+        <p class="field-help" id="game-html-status">Choose a standalone .html file. Its contents will be stored with this game and included in backups.</p>
+      </div>
       <label class="field-label">Description <textarea id="game-description" rows="3" maxlength="500" placeholder="What makes this game fun?"></textarea></label>
       <div class="field-row">
         <label class="field-label">Genre / tags <input id="game-tags" placeholder="Action, Multiplayer"></label>
