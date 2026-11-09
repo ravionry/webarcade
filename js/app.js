@@ -290,20 +290,51 @@
     const tags = (game.tags || []).map(tag => `<span class="tag-pill">${escapeHtml(tag)}</span>`).join("");
     const collection = library.collections.find(c => c.id === game.collectionId)?.name || "Unsorted";
     const screenshots = Array.isArray(game.screenshots) ? game.screenshots : [];
-    $("#details-content").innerHTML = `<div class="detail-hero"><div class="detail-cover-wrap">${cover}<button class="media-remove-button cover-remove-button" data-detail-action="remove-cover" data-id="${escapeHtml(game.id)}" ${game.coverRemoved ? "disabled" : ""}>Remove cover</button></div><div class="detail-copy"><p class="eyebrow">GAME PROFILE <span class="eyebrow-slash">/ WEBARCADE</span></p><h1>${escapeHtml(game.title)}<span class="period">.</span></h1><p class="detail-description">${escapeHtml(game.description || "No description yet. Add a few words about this game to make it your own.")}</p><div class="detail-tags">${tags || '<span class="tag-pill">Browser game</span>'}</div><div class="detail-actions"><button class="primary-button" data-detail-action="launch" data-id="${escapeHtml(game.id)}">↗ &nbsp; Launch game</button><button class="secondary-button" data-detail-action="favorite" data-id="${escapeHtml(game.id)}">${game.favorite ? "★ Favorited" : "☆ Add favorite"}</button><button class="secondary-button" data-detail-action="edit" data-id="${escapeHtml(game.id)}">✎ Edit details</button><button class="danger-button" data-detail-action="delete" data-id="${escapeHtml(game.id)}">Delete game</button></div></div></div><div class="detail-metadata"><div class="metadata-cell"><div class="metadata-label">COLLECTION</div><div class="metadata-value">${escapeHtml(collection)}</div></div><div class="metadata-cell"><div class="metadata-label">PLAY HISTORY</div><div class="metadata-value">${game.playCount || 0} launches${game.lastPlayedAt ? ` · Last played ${new Date(game.lastPlayedAt).toLocaleDateString()}` : " · Not played yet"}</div></div><div class="metadata-cell" style="grid-column:1/-1"><div class="metadata-label">GAME URL</div><div class="url-row"><div class="metadata-value">${escapeHtml(game.url)}</div><button data-detail-action="copy" data-id="${escapeHtml(game.id)}">Copy URL</button></div></div></div><div class="section-heading"><h2>Screenshots</h2><p>${screenshots.length ? `${screenshots.length} images` : "A closer look at the game"}</p></div>${screenshots.length ? `<div class="screenshot-strip">${screenshots.map((src,i)=>`<div class="screenshot-media-item"><button class="screenshot-thumb" data-detail-action="screenshot" data-index="${i}" aria-label="View screenshot ${i+1}"><img src="${src}" alt="${escapeHtml(game.title)} screenshot ${i+1}"></button><button class="media-remove-button" data-detail-action="remove-screenshot" data-index="${i}" data-id="${escapeHtml(game.id)}">Remove</button></div>`).join("")}</div>` : `<div class="screenshot-empty">No screenshots added yet. Edit this game to add your own artwork.</div>`}`;
+    $("#details-content").innerHTML = `<div class="detail-hero"><div class="detail-cover-wrap">${cover}<button class="media-remove-button cover-remove-button" data-detail-action="remove-cover" data-id="${escapeHtml(game.id)}" ${game.coverRemoved ? "disabled" : ""}>Remove cover</button></div><div class="detail-copy"><p class="eyebrow">GAME PROFILE <span class="eyebrow-slash">/ WEBARCADE</span></p><h1>${escapeHtml(game.title)}<span class="period">.</span></h1><p class="detail-description">${escapeHtml(game.description || "No description yet. Add a few words about this game to make it your own.")}</p><div class="detail-tags">${tags || '<span class="tag-pill">Browser game</span>'}</div><div class="detail-actions"><button class="primary-button" data-detail-action="launch" data-id="${escapeHtml(game.id)}">↗ &nbsp; Launch game</button><button class="secondary-button" data-detail-action="favorite" data-id="${escapeHtml(game.id)}">${game.favorite ? "★ Favorited" : "☆ Add favorite"}</button><button class="secondary-button" data-detail-action="edit" data-id="${escapeHtml(game.id)}">✎ Edit details</button><button class="danger-button" data-detail-action="delete" data-id="${escapeHtml(game.id)}">Delete game</button></div></div></div><div class="detail-metadata"><div class="metadata-cell"><div class="metadata-label">COLLECTION</div><div class="metadata-value">${escapeHtml(collection)}</div></div><div class="metadata-cell"><div class="metadata-label">PLAY HISTORY</div><div class="metadata-value">${game.playCount || 0} launches${game.lastPlayedAt ? ` · Last played ${new Date(game.lastPlayedAt).toLocaleDateString()}` : " · Not played yet"}</div></div><div class="metadata-cell" style="grid-column:1/-1"><div class="metadata-label">GAME SOURCE</div><div class="metadata-value">${game.sourceType === "html" ? `HTML FILE · ${escapeHtml(game.htmlFilename || "Attached game")}` : `URL · ${escapeHtml(game.url || "")}`}</div>${game.sourceType === "url" ? `<div class="url-row"><div class="metadata-value">${escapeHtml(game.url || "")}</div><button data-detail-action="copy" data-id="${escapeHtml(game.id)}">Copy URL</button></div>` : `<p class="field-help">The HTML source is stored in this library and included in JSON backups.</p>`}</div></div><div class="section-heading"><h2>Screenshots</h2><p>${screenshots.length ? `${screenshots.length} images` : "A closer look at the game"}</p></div>${screenshots.length ? `<div class="screenshot-strip">${screenshots.map((src,i)=>`<div class="screenshot-media-item"><button class="screenshot-thumb" data-detail-action="screenshot" data-index="${i}" aria-label="View screenshot ${i+1}"><img src="${src}" alt="${escapeHtml(game.title)} screenshot ${i+1}"></button><button class="media-remove-button" data-detail-action="remove-screenshot" data-index="${i}" data-id="${escapeHtml(game.id)}">Remove</button></div>`).join("")}</div>` : `<div class="screenshot-empty">No screenshots added yet. Edit this game to add your own artwork.</div>`}`;
     $("#details-screen").querySelector(".details-panel-header").scrollIntoView({block:"nearest"});
   }
   function launchGameWindow(game) {
-    const url = safeUrl(game.url);
-    if (!url) { showToast("This game has an invalid URL."); return; }
     game.lastPlayedAt = new Date().toISOString();
     game.playCount = (game.playCount || 0) + 1;
     saveLibrary();
-    // Browsers do not allow a website to force true fullscreen on another origin.
-    // Request a separate, screen-sized popup as the closest browser-safe behavior.
+
     const width = Math.max(800, window.screen?.availWidth || 1280);
     const height = Math.max(600, window.screen?.availHeight || 800);
     const features = `popup=yes,width=${width},height=${height},left=0,top=0`;
+
+    if (game.sourceType === "html") {
+      if (typeof game.htmlContent !== "string" || !game.htmlContent.trim()) {
+        showToast("This game has no attached HTML file. Edit the game and attach one.");
+        return;
+      }
+
+      // Run uploaded game code in a sandboxed iframe without same-origin access.
+      // This keeps the uploaded document separate from the WebArcade library.
+      const popup = window.open("", "_blank", features);
+      if (!popup) {
+        showToast("The browser blocked the game window. Allow pop-ups for WebArcade and try again.");
+        return;
+      }
+
+      const escapeAttribute = value => String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+      popup.document.open();
+      popup.document.write(`<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${escapeHtml(game.title)}</title>
+<style>html,body{margin:0;width:100%;height:100%;overflow:hidden}iframe{display:block;width:100%;height:100%;border:0}</style>
+</head><body><iframe title="${escapeHtml(game.title)}" sandbox="allow-scripts allow-forms allow-pointer-lock allow-downloads" allow="fullscreen; autoplay; gamepad" srcdoc="${escapeAttribute(game.htmlContent)}"></iframe></body></html>`);
+      popup.document.close();
+      try { popup.focus(); } catch (_) {}
+      showToast("HTML game launched in a sandboxed window.");
+      return;
+    }
+
+    const url = safeUrl(game.url);
+    if (!url) { showToast("This game has an invalid URL."); return; }
     const gameWindow = window.open(url, "_blank", features);
     if (!gameWindow) {
       showToast("The browser blocked the game window. Allow pop-ups for WebArcade and try again.");
@@ -331,7 +362,7 @@
     if (action === "favorite") { game.favorite=!game.favorite; saveLibrary(); showDetails(game.id); }
     if (action === "edit") openGameDialog(game);
     if (action === "delete") { await deleteGameById(game.id); return; }
-    if (action === "copy") { try { await navigator.clipboard.writeText(game.url); showToast("URL copied."); } catch { showToast("Copy isn't available in this browser."); } }
+    if (action === "copy" && game.sourceType !== "html") { try { await navigator.clipboard.writeText(game.url); showToast("URL copied."); } catch { showToast("Copy isn't available in this browser."); } }
     if (action === "screenshot") { const src=game.screenshots?.[Number(button.dataset.index)]; if(src) { $("#lightbox-image").src=src; $("#lightbox").showModal(); } }
     if (action === "remove-cover") {
       if (!await confirmCoverRemoval(game.title)) return;
@@ -371,7 +402,13 @@
     $("#game-id").value = game?.id || "";
     $("#dialog-title").textContent = game ? "Edit game" : "Add a game";
     $("#game-title").value = game?.title || "";
+    $("#game-source-type").value = game?.sourceType === "html" ? "html" : "url";
     $("#game-url").value = game?.url || "";
+    $("#game-html-file").value = "";
+    $("#game-html-status").textContent = game?.sourceType === "html"
+      ? `Attached: ${game.htmlFilename || "HTML game"}${game.htmlContent ? ` · ${(new Blob([game.htmlContent]).size / 1024).toFixed(1)} KB` : ""}. Choose another file to replace it.`
+      : "Choose a standalone .html file. Its contents will be stored with this game and included in backups.";
+    updateGameSourceFields();
     $("#game-description").value = game?.description || "";
     $("#game-tags").value = (game?.tags || []).join(", ");
     $("#game-collection").value = game?.collectionId || "";
@@ -379,6 +416,29 @@
     $("#delete-game-button").hidden = !game;
     $("#game-dialog").showModal();
     $("#game-title").focus();
+  }
+
+  function updateGameSourceFields() {
+    const isHtml = $("#game-source-type").value === "html";
+    $("#game-url-field").hidden = isHtml;
+    $("#game-html-field").hidden = !isHtml;
+    $("#game-url").required = !isHtml;
+  }
+
+  $("#game-source-type").addEventListener("change", updateGameSourceFields);
+
+  async function readHtmlGame(file) {
+    if (!file) return null;
+    if (!/\.html?$/i.test(file.name) && file.type !== "text/html") {
+      throw new Error("Please choose an .html file.");
+    }
+    const MAX_HTML_SIZE = 5 * 1024 * 1024;
+    if (file.size > MAX_HTML_SIZE) {
+      throw new Error("Please choose an HTML file smaller than 5 MB.");
+    }
+    const content = await file.text();
+    if (!content.trim()) throw new Error("That HTML file is empty.");
+    return { content, filename: file.name };
   }
 
   async function readCover(file) {
@@ -396,11 +456,27 @@
   $("#game-form").addEventListener("submit", async event => {
     event.preventDefault();
     const title = $("#game-title").value.trim();
-    const url = safeUrl($("#game-url").value.trim());
+    const sourceType = $("#game-source-type").value;
+    const url = sourceType === "url" ? safeUrl($("#game-url").value.trim()) : "";
     if (!title) return $("#form-error").textContent = "Enter a title.";
-    if (!url) return $("#form-error").textContent = "Enter a valid http:// or https:// URL.";
+    if (sourceType === "url" && !url) return $("#form-error").textContent = "Enter a valid http:// or https:// URL.";
     const existingId = $("#game-id").value;
     const existing = library.games.find(game => game.id === existingId);
+    const htmlFile = $("#game-html-file").files[0];
+    let htmlContent = sourceType === "html" ? (existing?.sourceType === "html" ? existing.htmlContent || "" : "") : "";
+    let htmlFilename = sourceType === "html" ? (existing?.sourceType === "html" ? existing.htmlFilename || "" : "") : "";
+    try {
+      if (sourceType === "html" && htmlFile) {
+        const htmlData = await readHtmlGame(htmlFile);
+        htmlContent = htmlData.content;
+        htmlFilename = htmlData.filename;
+      }
+      if (sourceType === "html" && !htmlContent) {
+        throw new Error("Choose an HTML file before saving this game.");
+      }
+    } catch (error) {
+      return $("#form-error").textContent = error.message;
+    }
     const file = $("#game-cover").files[0];
     let coverData = existing?.coverData || (existing?.coverRemoved ? "" : generateCustomCover(title, $("#game-tags").value.split(",").map(tag => tag.trim()).filter(Boolean)));
     let coverRemoved = Boolean(existing?.coverRemoved);
@@ -417,6 +493,9 @@
     const game = {
       id: existingId || makeId(title),
       title, url,
+      sourceType,
+      htmlContent,
+      htmlFilename,
       description: $("#game-description").value.trim(),
       tags: $("#game-tags").value.split(",").map(tag => tag.trim()).filter(Boolean).slice(0, 20),
       collectionId: $("#game-collection").value,
@@ -783,14 +862,21 @@
       }
       // Validate and normalize everything before changing the current library.
       const importedGames = parsed.games.map((game, index) => {
-        if (!game || typeof game !== "object" || typeof game.title !== "string" || !game.title.trim() || !safeUrl(game.url)) {
-          throw new Error(`Game #${index + 1} has an invalid title or URL. Your current library has not been changed.`);
+        const sourceType = game?.sourceType === "html" ? "html" : "url";
+        const validSource = sourceType === "html"
+          ? typeof game?.htmlContent === "string" && game.htmlContent.trim().length > 0
+          : Boolean(safeUrl(game?.url));
+        if (!game || typeof game !== "object" || typeof game.title !== "string" || !game.title.trim() || !validSource) {
+          throw new Error(`Game #${index + 1} has an invalid title or game source. Your current library has not been changed.`);
         }
         return {
           ...game,
           id: String(game.id || `imported-game-${index + 1}`),
           title: game.title.trim(),
-          url: safeUrl(game.url),
+          sourceType,
+          url: sourceType === "url" ? safeUrl(game.url) : "",
+          htmlContent: sourceType === "html" ? game.htmlContent : "",
+          htmlFilename: sourceType === "html" && typeof game.htmlFilename === "string" ? game.htmlFilename : "",
           description: typeof game.description === "string" ? game.description : "",
           coverData: typeof game.coverData === "string" ? game.coverData : "",
           coverRemoved: Boolean(game.coverRemoved),
@@ -887,6 +973,7 @@
       sidebarCollapsed: false, accentColor: "#165DFF", ...library.settings
     };
     $("#sort-select").value = library.settings.sort;
+    updateGameSourceFields();
     $("#lightbox")?.addEventListener("click", event => {
       if (event.target.id === "lightbox" || event.target.closest("[data-close-lightbox]")) $("#lightbox").close();
     });
