@@ -25,30 +25,125 @@
   let currentFilter = "all";
   let toastTimer;
 
-  function loadLibrary() {
+  // IndexedDB stores the complete library, including uploaded image data.
+  // Existing localStorage libraries are migrated automatically on first launch.
+  const DB_NAME = "webarcade.database";
+  const DB_VERSION = 1;
+  const DB_STORE = "libraries";
+  const DB_RECORD_ID = "main";
+  let storageMode = "indexeddb";
+  let saveQueue = Promise.resolve();
+
+  function openLibraryDB() {
+    return new Promise((resolve, reject) => {
+      if (!("indexedDB" in window)) {
+        reject(new Error("IndexedDB is not supported in this browser."));
+        return;
+      }
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(DB_STORE)) {
+          db.createObjectStore(DB_STORE, { keyPath: "id" });
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error || new Error("Could not open browser storage."));
+      request.onblocked = () => reject(new Error("Browser storage is blocked by another open WebArcade tab."));
+    });
+  }
+
+  async function readLibraryRecord(db) {
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(DB_STORE, "readonly");
+      const request = transaction.objectStore(DB_STORE).get(DB_RECORD_ID);
+      request.onsuccess = () => resolve(request.result?.library || null);
+      request.onerror = () => reject(request.error || new Error("Could not read the saved library."));
+    });
+  }
+
+  async function writeLibraryRecord(db, value) {
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(DB_STORE, "readwrite");
+      transaction.objectStore(DB_STORE).put({ id: DB_RECORD_ID, library: value, updatedAt: new Date().toISOString() });
+      transaction.oncomplete = () => resolve(true);
+      transaction.onerror = () => reject(transaction.error || new Error("Could not save the library."));
+      transaction.onabort = () => reject(transaction.error || new Error("The library save was cancelled."));
+    });
+  }
+
+  function normalizeLibrary(parsed) {
+    if (!parsed || !Array.isArray(parsed.games) || !Array.isArray(parsed.collections)) {
+      throw new Error("Invalid library structure");
+    }
+    return {
+      schemaVersion: 1,
+      games: parsed.games,
+      collections: parsed.collections,
+      settings: {
+        theme: "light", sort: "added", density: "compact", viewMode: "grid",
+        sidebarCollapsed: false, accentColor: "#165DFF",
+        ...(parsed.settings || {})
+      }
+    };
+  }
+
+  async function loadLibrary() {
+    let db;
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return starterLibrary();
-      const parsed = JSON.parse(raw);
-      if (!parsed || !Array.isArray(parsed.games) || !Array.isArray(parsed.collections)) throw new Error("Invalid library structure");
-      return { schemaVersion: 1, games: parsed.games, collections: parsed.collections, settings: { theme: "light", sort: "added", density: "compact", viewMode: "grid", accentColor: "#165DFF", ...(parsed.settings || {}) } };
+      db = await openLibraryDB();
+      storageMode = "indexeddb";
+      const stored = await readLibraryRecord(db);
+      if (stored) return normalizeLibrary(stored);
+
+      // One-time migration from the v1 localStorage save.
+      const legacyRaw = localStorage.getItem(STORAGE_KEY);
+      const migrated = legacyRaw ? normalizeLibrary(JSON.parse(legacyRaw)) : starterLibrary();
+      await writeLibraryRecord(db, migrated);
+      try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
+      return migrated;
     } catch (error) {
-      console.error("Could not load library:", error);
-      return starterLibrary();
+      console.error("IndexedDB unavailable; using localStorage fallback:", error);
+      if (db) db.close();
+      storageMode = "localstorage";
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? normalizeLibrary(JSON.parse(raw)) : starterLibrary();
+      } catch (legacyError) {
+        console.error("Could not load library:", legacyError);
+        return starterLibrary();
+      }
+    } finally {
+      if (db) db.close();
     }
   }
 
   function saveLibrary() {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(library));
-      $("#storage-status").textContent = "Saved in this browser";
-      return true;
-    } catch (error) {
-      console.error(error);
-      $("#storage-status").textContent = "Save failed — export a backup";
-      showToast("Could not save. The library may be too large; export a backup.");
-      return false;
-    }
+    // Snapshot at call time so queued saves cannot accidentally capture later mutations.
+    const snapshot = JSON.parse(JSON.stringify(library));
+    saveQueue = saveQueue.then(async () => {
+      try {
+        if (storageMode === "indexeddb") {
+          const db = await openLibraryDB();
+          try {
+            await writeLibraryRecord(db, snapshot);
+          } finally {
+            db.close();
+          }
+          $("#storage-status").textContent = "Saved in this browser · IndexedDB";
+        } else {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+          $("#storage-status").textContent = "Saved in this browser · local storage";
+        }
+        return true;
+      } catch (error) {
+        console.error("Could not save library:", error);
+        $("#storage-status").textContent = "Save failed — export a backup";
+        showToast("Could not save your library. Export a backup before continuing.");
+        return false;
+      }
+    });
+    return saveQueue;
   }
 
   function makeId(value) {
@@ -246,8 +341,8 @@
       // generated artwork for blank covers, not create a permanent no-cover state.
       game.coverData = "";
       game.coverRemoved = false;
-      const saved = saveLibrary();
-      if (saved === false) {
+      const saved = await saveLibrary();
+      if (!saved) {
         game.coverData = previousCoverData;
         game.coverRemoved = previousCoverRemoved;
         showToast("Could not remove cover because the change could not be saved.");
@@ -257,7 +352,7 @@
       showDetails(game.id);
       showToast("Cover removed. Generated artwork is now being used.");
     }
-    if (action === "remove-screenshot") { const index=Number(button.dataset.index); if (!Array.isArray(game.screenshots) || !game.screenshots[index]) return; game.screenshots.splice(index,1); saveLibrary(); render(); showDetails(game.id); showToast("Screenshot removed."); }
+    if (action === "remove-screenshot") { const index=Number(button.dataset.index); if (!Array.isArray(game.screenshots) || !game.screenshots[index]) return; const previous = [...game.screenshots]; game.screenshots.splice(index,1); if (!await saveLibrary()) { game.screenshots = previous; return; } render(); showDetails(game.id); showToast("Screenshot removed."); }
   });
 
   function renderCollections() {
@@ -333,9 +428,13 @@
       lastPlayedAt: existing?.lastPlayedAt || null,
       playCount: existing?.playCount || 0
     };
+    const previousGames = [...library.games];
     if (existing) library.games = library.games.map(item => item.id === existingId ? game : item);
     else library.games.push(game);
-    saveLibrary();
+    if (!await saveLibrary()) {
+      library.games = previousGames;
+      return $("#form-error").textContent = "Could not save this game. Your previous library is unchanged; export a backup and try again.";
+    }
     $("#game-dialog").close();
     render();
     if (selectedGameId === game.id) showDetails(game.id);
@@ -423,7 +522,7 @@
     if (!await confirmGameDeletion(game.title)) return false;
     const previousGames = library.games;
     library.games = previousGames.filter(item => item.id !== id);
-    if (!saveLibrary()) {
+    if (!await saveLibrary()) {
       library.games = previousGames;
       render();
       showToast("Delete failed: browser storage could not save the change.");
@@ -534,24 +633,33 @@
     if (!button) return;
     backToLibrary(); currentView = "collection"; currentCollection = button.dataset.collection; currentFilter = "all"; render();
   });
-  $("#collection-form").addEventListener("submit", event => {
+  $("#collection-form").addEventListener("submit", async event => {
     event.preventDefault();
     const name = $("#collection-name").value.trim();
     const existingId = $("#collection-id").value;
     if (!name) return;
     if (library.collections.some(c => c.name.toLowerCase() === name.toLowerCase() && c.id !== existingId)) return showToast("That collection already exists.");
+    const previousCollections = library.collections.map(item => ({ ...item }));
+    const previousView = currentView;
+    const previousCollection = currentCollection;
     if (existingId) {
       const collection = library.collections.find(c => c.id === existingId);
       if (!collection) return;
       collection.name = name;
-      showToast("Collection renamed.");
     } else {
       const id = `collection-${Date.now().toString(36)}`;
       library.collections.push({ id, name });
       currentView = "collection"; currentCollection = id;
-      showToast("Collection created.");
     }
-    saveLibrary(); $("#collection-dialog").close(); render();
+    if (!await saveLibrary()) {
+      library.collections = previousCollections;
+      currentView = previousView;
+      currentCollection = previousCollection;
+      render();
+      return;
+    }
+    $("#collection-dialog").close(); render();
+    showToast(existingId ? "Collection renamed." : "Collection created.");
   });
 
   function confirmCollectionDeletion(name) {
@@ -599,7 +707,7 @@
     const previousAssignments = library.games.map(game => [game.id, game.collectionId]);
     library.collections = previousCollections.filter(c => c.id !== id);
     library.games.forEach(game => { if (game.collectionId === id) game.collectionId = ""; });
-    if (!saveLibrary()) {
+    if (!await saveLibrary()) {
       library.collections = previousCollections;
       const assignments = new Map(previousAssignments);
       library.games.forEach(game => { game.collectionId = assignments.get(game.id) ?? game.collectionId; });
@@ -726,7 +834,7 @@
           collections: [...mergedCollections.values()]
         };
       }
-      if (!saveLibrary()) {
+      if (!await saveLibrary()) {
         library = previousLibrary;
         render();
         throw new Error("Import couldn't be saved in this browser. Your current library has been restored; try a smaller backup or export a copy first.");
@@ -764,15 +872,32 @@
     }
   });
 
-  library = loadLibrary();
-  let generatedMissingCovers = false;
-  library.games.forEach(game => {
-    if (!game.coverData && !game.coverRemoved) { game.coverData = generateCustomCover(game.title, game.tags || []); generatedMissingCovers = true; }
+  (async () => {
+    library = await loadLibrary();
+    let generatedMissingCovers = false;
+    library.games.forEach(game => {
+      if (!game.coverData && !game.coverRemoved) {
+        game.coverData = generateCustomCover(game.title, game.tags || []);
+        generatedMissingCovers = true;
+      }
+    });
+    if (!library.settings) library.settings = {};
+    library.settings = {
+      theme: "light", sort: "added", density: "compact", viewMode: "grid",
+      sidebarCollapsed: false, accentColor: "#165DFF", ...library.settings
+    };
+    $("#sort-select").value = library.settings.sort;
+    $("#lightbox")?.addEventListener("click", event => {
+      if (event.target.id === "lightbox" || event.target.closest("[data-close-lightbox]")) $("#lightbox").close();
+    });
+    if (generatedMissingCovers) await saveLibrary();
+    $("#storage-status").textContent = storageMode === "indexeddb"
+      ? "Saved in this browser · IndexedDB"
+      : "Saved in this browser · local storage";
+    render();
+  })().catch(error => {
+    console.error("WebArcade could not initialize:", error);
+    $("#storage-status").textContent = "Library could not be loaded";
+    showToast("WebArcade could not load its library. Try refreshing the page.");
   });
-  if (!library.settings) library.settings = {};
-  library.settings = { theme: "light", sort: "added", density: "compact", viewMode: "grid", sidebarCollapsed: false, accentColor: "#165DFF", ...library.settings };
-  $("#sort-select").value = library.settings.sort;
-  $("#lightbox")?.addEventListener("click", event => { if (event.target.id === "lightbox" || event.target.closest("[data-close-lightbox]")) $("#lightbox").close(); });
-  if (!localStorage.getItem(STORAGE_KEY) || generatedMissingCovers) saveLibrary();
-  render();
 })(); 
